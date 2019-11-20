@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"flag"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -16,11 +16,45 @@ import (
 
 func main() {
 
-	var imagehtml string
-
-	for i := 1; i <= 5; i++ {
-		makeImage(i)
+	// Load up config data
+	type Config struct {
+		Images     int
+		Paragraphs int
 	}
+
+	// Open our jsonFile
+	jsonFile, err := os.Open("sitegenconfig.json")
+	// if we os.Open returns an error then handle it
+	if err != nil {
+		fmt.Println(err)
+	}
+	//fmt.Println("Successfully Opened users.json")
+	// defer the closing of our jsonFile so that we can parse it later on
+	//defer jsonFile.Close()
+
+	// read our opened xmlFile as a byte array.
+	byteValue, _ := ioutil.ReadAll(jsonFile)
+
+	var cfg *Config
+	cfg = new(Config)
+
+	// we unmarshal our byteArray which contains our
+	// jsonFile's content into 'users' which we defined above
+	json.Unmarshal(byteValue, &cfg)
+
+	var imagecount = cfg.Images
+	//var paragraphs = cfg.Paragraphs
+
+	// start HTML generation
+	print(imagecount)
+
+	var imagehtml = "<div class=\"row\">\n"
+
+	for i := 1; i <= imagecount; i++ {
+		imagehtml += "<div class=\"col-sm-2\"><img src=\"" + makeImage(i) + "\" /></div>\n"
+	}
+
+	imagehtml += "</div>\n</div>"
 
 	input, err := ioutil.ReadFile("template.html")
 	if err != nil {
@@ -36,24 +70,30 @@ func main() {
 	}
 }
 
-func makeImage(i int) {
-	flag.Parse()
+func makeImage(i int) string {
+
+	//flag.Parse()
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	out, err := os.Create("./output" + string(i) + ".jpg")
+	var filename = fmt.Sprintf("image-%d.jpg", i)
+
+	out, err := os.Create("./" + filename)
 
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	// generate some QR code look a like image
+	// declared outside the loop so values are consistent with x and y
+	var randx = getRandom()
+	var randy = getRandom()
 
-	imgRect := image.Rect(0, 0, 300, 300)
+	// generate some QR code look a like image
+	imgRect := image.Rect(0, 0, randx, randy)
 	img := image.NewGray(imgRect)
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.ZP, draw.Src)
-	for y := 0; y < 300; y += 10 {
-		for x := 0; x < 300; x += 10 {
+	for y := 0; y < randy; y += 10 {
+		for x := 0; x < randx; x += 10 {
 			fill := &image.Uniform{color.Black}
 			if rand.Intn(10)%2 == 0 {
 				fill = &image.Uniform{color.White}
@@ -72,4 +112,15 @@ func makeImage(i int) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	return filename
+}
+
+// generates a psuedorandom number from 100-300
+func getRandom() int {
+
+	rand.Seed(time.Now().UnixNano())
+	min := 100
+	max := 300
+	return (rand.Intn(max-min+1) + min)
 }
